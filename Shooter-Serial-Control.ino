@@ -1,99 +1,87 @@
-int relayNumbers[4] = {1,2,3,4};
-int solenoidPin[4] = {7,6,5,4};
-int solenoidAt[2];
-int solenoidAtIndex[2];
+const int loaderPins[2] = { 7, 6 }; // Pins controlling the large cylinder
+const int latchPins[2] = { 5, 4 }; // Pins controlling the latch cylinder
+const int RELAY_HOLD = 25; // How long to hold the relay on (ms)
+
 int fromSerial;
+int loaderState;
+int latchState;
 
-const int DELAY_AFTER_FIRE = 25;
+void setup()
+{
+  // Pin modes
+  for (int i = 0; i < 2; i++)
+  {
+    pinMode(loaderPins[i], OUTPUT);
+    pinMode(latchPins[i], OUTPUT);
+  }
 
-void setup() {
-  for (int i = 0; i < 4; i++) pinMode(solenoidPin[i], OUTPUT);
-  solenoidAt[0] = solenoidPin[0];
-  solenoidAtIndex[0] = 0;
-  solenoidAt[1] = solenoidPin[2];
-  solenoidAtIndex[1] = 2;
-  digitalWrite(solenoidAt[0], HIGH);
-  digitalWrite(solenoidAt[1], HIGH);
-  delay(25);
-  for (int i = 0; i < 4; i++)
-    {
-      digitalWrite(solenoidPin[i], LOW);
-    }
+  // Resetting the system
+  loaderState = loaderPins[0];
+  latchState = latchPins[0];
+  updateRelay(0); // Updates both relays
+
   Serial.begin(9600);
-  Serial.println("Enter 1 to toggle the state of the large cylinder.\nEnter 2 to toggle the state of the small cylinder.");
+  Serial.println("Enter 1 to toggle the state of the loader.");
+  Serial.println("Enter 2 to toggle the state of the latch.");
+  Serial.println("Enter 3 to reset the system.");
+  Serial.println("Be sure that the line ending option below is not 'No line ending'.\n");
 }
 
-void loop() {
+void loop()
+{
   fromSerial = Serial.parseInt();
 
-  if (fromSerial == 1)
+  if (fromSerial == 3) // Reset
   {
-    if (solenoidAtIndex[0] == 0)
-    {
-      solenoidAtIndex[0] = 1;
-      solenoidAt[0] = solenoidPin[1];
-    }
-    else
-    {
-      solenoidAtIndex[0] = 0;
-      solenoidAt[0] = solenoidPin[0];
-    }
+    loaderState = loaderPins[0];
+    latchState = latchPins[0];
+    updateRelay(0);
   }
-  if (fromSerial == 2)
+  else
   {
-    if (solenoidAtIndex[1] == 2)
-    {
-      solenoidAtIndex[1] = 3;
-      solenoidAt[1] = solenoidPin[3];
-    }
-    else
-    {
-      solenoidAtIndex[1] = 2;
-      solenoidAt[1] = solenoidPin[2];
-    }
-  }
-      
-  if (fromSerial == 1 || fromSerial == 2)
-  {
-    /*Serial.print("#");
-    Serial.print(fromSerial);
-    Serial.print(" -> ");
-    Serial.print(solenoidAt[fromSerial - 1]);
-    Serial.print("(");
-    Serial.print(relayNumbers[solenoidAtIndex[fromSerial - 1]]);
-    Serial.print(")..");
-    */
-    for (int i = 0; i < 4; i++)
-    {
-      if (solenoidAt[fromSerial - 1] == solenoidPin[i])
-      {
-        digitalWrite(solenoidPin[i], HIGH);
-        switch (relayNumbers[i])
-        {
-          case 1:
-            Serial.println("Pushing bucket back..");
-            break;
-          case 2:
-            Serial.println("Resetting loading slide..");
-            break;
-          case 3:
-            Serial.println("Raising latch..");
-            break;
-          case 4:
-            Serial.println("Lowering latch..");
-            break;
-        }
-      }
-      else
-     {
-       digitalWrite(solenoidPin[i], LOW);
-      }
-    }
-    delay(DELAY_AFTER_FIRE);
-    for (int i = 0; i < 4; i++)
-    {
-      digitalWrite(solenoidPin[i], LOW);
-    }
-    Serial.print("!\n");
+    if (fromSerial == 1 || fromSerial == 2) toggle(fromSerial);
   }
 }
+
+void allRelaysLow()
+{
+  for (int i = 0; i < 2; i++)
+  {
+    digitalWrite(loaderPins[i], LOW);
+    digitalWrite(latchPins[i], LOW);
+  }
+}
+
+void toggle(int cylinder)
+{
+  if (cylinder == 1)
+  {
+    loaderState = loaderPins[loaderState == loaderPins[0] ? 1 : 0];
+    Serial.println(
+      loaderState == loaderPins[0] ?
+      "Resetting loading slide.." :
+      "Loading bucket.."
+    );
+  }
+
+  if (cylinder == 2)
+  {
+    latchState = latchPins[latchState == latchPins[0] ? 1 : 0];
+    Serial.println(
+      loaderState == loaderPins[0] ?
+      "Raising latch.." :
+      "Dropping latch.."
+    );
+  }
+
+  updateRelay(cylinder);
+}
+
+void updateRelay(int cylinder)
+{
+  if (cylinder == 0 || cylinder == 1) digitalWrite(loaderState, HIGH);
+  if (cylinder == 0 || cylinder == 2) digitalWrite(latchState, HIGH);
+  delay(RELAY_HOLD);
+  allRelaysLow();
+}
+
