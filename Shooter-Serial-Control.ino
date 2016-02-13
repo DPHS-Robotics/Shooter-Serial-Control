@@ -4,6 +4,7 @@ const int commandLoader = 1;
 const int commandLatch = 2;
 const int commandReset = 3;
 const int commandFireSequence = 5;
+const int commandStateRequest = 7;
 const int commandAssistedRelease = 9;
 const int backLimitSwitchPin = 10; // ENTER PIN VALUE
 const int frontLimitSwitchPin = 11; // ENTER PIN VALUE
@@ -13,7 +14,7 @@ const int assistedReleaseVacateTime = 500; // How long to wait for the loader to
                                            // during an assisted release
 const int firingSequenceVacateTime = 200; // How long to wait for the loader to vacate
                                           // during a firing sequence
-const int RELAY_HOLD = 25; // How long to hold the relay on (ms)
+const int RELAY_HOLD = 20; // How long to hold the relay on (ms)
 const int NUM_POWER_PINS = 2;
 const int POWER_PINS[NUM_POWER_PINS] = { 8, 9 };
 
@@ -53,25 +54,30 @@ void setup()
   Serial.print(" initiates a firing sequence.\n");
   Serial.print(commandAssistedRelease);
   Serial.print(" initiates an assisted release.\n");
-  Serial.print("\nBe sure that the line ending option below is not 'No line ending'.\n\n");
+  Serial.println("\nA '.' after feedback indicates that the action has been completed.");
+  Serial.println("A '..' after feedback indicates that the action will complete promptly.");
+  Serial.println("A '...' before feedback indicates that the action follows a sequence action.");
+  Serial.println("A '...' after feedback indicates that a sequence action will follow.");
+  Serial.println("Be sure that the line ending option below is not 'No line ending'.\n");
 }
 
 void loop()
 {
   fromSerial = Serial.parseInt();
 
-  if (fromSerial == commandReset) // Reset
+  if (fromSerial == commandLoader) toggle(commandLoader);     // 1 -> Toggle loader
+  if (fromSerial == commandLatch) toggle(commandLatch);       // 2 -> Toggle latch
+  if (fromSerial == commandReset)                             // 3 -> Reset
   {
     reset();
     Serial.println("Reset.");
   }
-  if (fromSerial == commandLoader || fromSerial == commandLatch) toggle(fromSerial);
-  if (fromSerial == commandFireSequence)
+  if (fromSerial == commandFireSequence)                      // 5 -> Firing sequence
   {
     Serial.println("Beginning firing sequence...");
     Serial.println("...raising latch...");
     absoluteRelay(commandLatch, 0);
-    Serial.println("...loading bucket...");
+    Serial.println("...pushing loading slide...");
     absoluteRelay(commandLoader, 1);
     while (!digitalRead(backLimitSwitchPin));
     Serial.println("...resetting loading slide...");
@@ -85,11 +91,15 @@ void loop()
     absoluteRelay(commandLatch, 0);
     Serial.println("...firing sequence complete.");
   }
-  if (fromSerial == commandAssistedRelease)
+  if (fromSerial == commandStateRequest)                      // 7 -> State request
+  {
+    
+  }
+  if (fromSerial == commandAssistedRelease)                   // 9 -> Assisted release
   {
     Serial.println("Beginning assisted release...");
     absoluteRelay(commandLoader, 1);
-    Serial.println("...waiting for loader...");
+    Serial.println("...pushing loading slide and waiting...");
     delay(assistedReleaseLoaderTime);
     Serial.println("...dropping latch...");
     absoluteRelay(commandLatch, 1);
@@ -120,7 +130,7 @@ void toggle(int cylinder)
     Serial.println(
       loaderState == loaderPins[0] ?
       "Resetting loading slide.." :
-      "Loading bucket.."
+      "Pushing loading slide.."
     );
   }
 
