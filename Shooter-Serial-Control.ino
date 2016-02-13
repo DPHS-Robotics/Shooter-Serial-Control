@@ -79,7 +79,7 @@ void loop()
     while (!digitalRead(frontLimitSwitchPin));
     Serial.println("...dropping latch...");
     absoluteRelay(commandLatch, 1);
-    Serial.println("...waiting for loader to vacate...");
+    Serial.println("...waiting for bucket to vacate...");
     delay(firingSequenceVacateTime);
     Serial.println("...raising latch...");
     absoluteRelay(commandLatch, 0);
