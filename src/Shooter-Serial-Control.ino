@@ -3,6 +3,8 @@ const int loaderPins[2] = { 7, 6 }; // Pins controlling the large cylinder
 const int latchPins[2] = { 5, 4 }; // Pins controlling the latch cylinder
 const int backLimitSwitchPin = 10;
 const int frontLimitSwitchPin = 11;
+const int NUM_POWER_PINS = 2; // How many power pins to include for the limit switches
+const int POWER_PINS[NUM_POWER_PINS] = { 8, 9 }; // Power pins for the limit switches
 
 // Commands
 const int commandLoader = 1;
@@ -16,9 +18,6 @@ const int assistedReleaseLoaderTime = 2000; // How long to wait for the loader t
 const int assistedReleaseVacateTime = 500; // How long to wait for the bucket to vacate the latch during an assisted release
 const int firingSequenceVacateTime = 200; // How long to wait for the bucket to vacate the latch during a firing sequence
 const int relayHoldTime = 20; // How long to hold the relay on (ms)
-
-const int NUM_POWER_PINS = 2; // How many power pins to include for the limit switches
-const int POWER_PINS[NUM_POWER_PINS] = { 8, 9 }; // Power pins for the limit switches
 
 int fromSerial;
 int loaderState;
@@ -59,7 +58,7 @@ void setup()
   Serial.println("A '..' after feedback indicates that the action will complete promptly.");
   Serial.println("A '...' before feedback indicates that the action follows an automatic action.");
   Serial.println("A '...' after feedback indicates that an automatic action will follow.");
-  Serial.println("A '!!' after feedback indicates that no action was performed due to user error.");
+  Serial.println("A '!!' after feedback indicates that no action was performed due to user error.\n");
 }
 
 void loop()
@@ -94,7 +93,7 @@ void runCommand(int command)
   if (command == commandFireSequence)                      // 5 -> Firing sequence
   {
     Serial.println("Beginning firing sequence...");
-    Serial.println("...raising latch...");
+    Serial.println("...locking latch...");
     absoluteRelay(commandLatch, 0);
     Serial.println("...pushing loading slide...");
     absoluteRelay(commandLoader, 1);
@@ -102,20 +101,20 @@ void runCommand(int command)
     Serial.println("...resetting loading slide...");
     absoluteRelay(commandLoader, 0);
     while (!digitalRead(frontLimitSwitchPin));
-    Serial.println("...dropping latch...");
+    Serial.println("...releasing latch...");
     absoluteRelay(commandLatch, 1);
     Serial.println("...waiting for bucket to vacate...");
     delay(firingSequenceVacateTime);
-    Serial.println("...raising latch...");
+    Serial.println("...locking latch...");
     absoluteRelay(commandLatch, 0);
     Serial.println("...firing sequence complete.");
   }
   if (command == commandStateRequest)                      // 7 -> State request
   {
     Serial.print("Loader: ");
-    Serial.print(loaderState == loaderPins[0] ? "Front\n" : "Loading\n");
+    Serial.print(loaderState == loaderPins[0] ? "Reset\n" : "Loading\n");
     Serial.print("Latch: ");
-    Serial.print(latchState == latchPins[0] ? "Up\n" : "Down\n");
+    Serial.print(latchState == latchPins[0] ? "Locked\n" : "Released\n");
   }
   if (command == commandAssistedRelease)                   // 9 -> Assisted release
   {
@@ -123,13 +122,13 @@ void runCommand(int command)
     absoluteRelay(commandLoader, 1);
     Serial.println("...pushing loading slide and waiting...");
     delay(assistedReleaseLoaderTime);
-    Serial.println("...dropping latch...");
+    Serial.println("...releasing latch...");
     absoluteRelay(commandLatch, 1);
     Serial.println("...releasing loader...");
     absoluteRelay(commandLoader, 0);
     Serial.println("...waiting for loader to vacate...");
     delay(assistedReleaseVacateTime);
-    Serial.println("...raising latch...");
+    Serial.println("...locking latch...");
     absoluteRelay(commandLatch, 0);
     Serial.println("...assisted release complete.");
   }
@@ -161,8 +160,8 @@ void toggle(int cylinder)
     latchState = latchPins[latchState == latchPins[0] ? 1 : 0];
     Serial.println(
       latchState == latchPins[0] ?
-      "Raising latch.." :
-      "Dropping latch.."
+      "Locking latch.." :
+      "Releasing latch.."
     );
   }
 
