@@ -102,7 +102,7 @@ void runCommand(int command)
     absoluteRelay(commandLatch, 0);
     Serial.println("...pushing loading slide...");
     absoluteRelay(commandLoader, 1);
-    while (!digitalRead(backLimitSwitchPin))
+    while (digitalRead(backLimitSwitchPin))
     {
       if (Serial.parseInt() != 0)
       {
@@ -112,7 +112,7 @@ void runCommand(int command)
     }
     Serial.println("...resetting loading slide...");
     absoluteRelay(commandLoader, 0);
-    while (!digitalRead(frontLimitSwitchPin))
+    while (digitalRead(frontLimitSwitchPin))
     {
       if (Serial.parseInt() != 0)
       {
