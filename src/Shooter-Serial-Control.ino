@@ -5,6 +5,9 @@ const int backLimitSwitchPin = 10;
 const int frontLimitSwitchPin = 11;
 const int NUM_POWER_PINS = 2; // How many power pins to include for the limit switches
 const int POWER_PINS[NUM_POWER_PINS] = { 8, 9 }; // Power pins for the limit switches
+const int pressureReaderPowerPin = A2;
+const int pressureReaderDataPin = A1;
+const int pressureReaderGroundPin = A0;
 
 // Commands
 const int commandLoader = 1;
@@ -18,6 +21,9 @@ const int assistedReleaseLoaderTime = 2000; // How long to wait for the loader t
 const int assistedReleaseVacateTime = 500; // How long to wait for the bucket to vacate the latch during an assisted release
 const int firingSequenceVacateTime = 200; // How long to wait for the bucket to vacate the latch during a firing sequence
 const int relayHoldTime = 20; // How long to hold the relay on (ms)
+
+const int fireAtPressure = 70;
+const int loadAtPressure = 110;
 
 int fromSerial;
 int loaderState;
@@ -38,6 +44,11 @@ void setup()
   }
   pinMode(backLimitSwitchPin, INPUT);
   pinMode(frontLimitSwitchPin, INPUT);
+  pinMode(pressureReaderGroundPin, OUTPUT);
+  pinMode(pressureReaderDataPin, INPUT);
+  pinMode(pressureReaderPowerPin, OUTPUT);
+  digitalWrite(pressureReaderGroundPin, LOW);
+  digitalWrite(pressureReaderPowerPin, HIGH);
 
   // Resetting the system
   loaderState = loaderPins[0];
@@ -100,6 +111,8 @@ void runCommand(int command)
     Serial.println("Beginning firing sequence...");
     Serial.println("...locking latch...");
     absoluteRelay(commandLatch, 0);
+    Serial.println("...waiting for pressure...");
+    holdForPressure(loadAtPressure);
     Serial.println("...pushing loading slide...");
     absoluteRelay(commandLoader, 1);
     while (!digitalRead(backLimitSwitchPin))
@@ -120,6 +133,8 @@ void runCommand(int command)
         return;
       }
     }
+    Serial.println("...waiting for pressure...");
+    holdForPressure(fireAtPressure);
     Serial.println("...releasing latch...");
     absoluteRelay(commandLatch, 1);
     Serial.println("...waiting for bucket to vacate...");
@@ -143,8 +158,12 @@ void runCommand(int command)
   {
     Serial.println("Beginning assisted release...");
     absoluteRelay(commandLoader, 1);
+    Serial.println("...waiting for pressure...");
+    holdForPressure(loadAtPressure);
     Serial.println("...pushing loading slide and waiting...");
     delay(assistedReleaseLoaderTime);
+    Serial.println("...waiting for pressure...");
+    holdForPressure(fireAtPressure);
     Serial.println("...releasing latch...");
     absoluteRelay(commandLatch, 1);
     Serial.println("...releasing loader...");
@@ -218,4 +237,9 @@ void reset()
 {
   absoluteRelay(commandLoader, 0);
   absoluteRelay(commandLatch, 0);
+}
+
+void holdForPressure(int PSIG)
+{
+  while(0.255 * (analogRead(pressureReaderDataPin)) - 25.427 < PSIG);
 }
