@@ -111,7 +111,12 @@ void runCommand(int command)
   }
   if (command == commandStateRequest)                      // 7 -> State request
   {
-
+    Serial.println("State request received...");
+    Serial.print("...loader: ");
+    Serial.print(loaderState == loaderPins[0] ? "Front" : "Loading");
+    Serial.print("...\n...latch: ");
+    Serial.print(latchState == latchPins[0] ? "Up" : "Down");
+    Serial.print("...\n...and that's the state.");
   }
   if (command == commandAssistedRelease)                   // 9 -> Assisted release
   {
