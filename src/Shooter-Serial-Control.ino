@@ -53,12 +53,14 @@ void setup()
   Serial.print(" resets the system.\n");
   Serial.print(commandFireSequence);
   Serial.print(" initiates a firing sequence.\n");
+  Serial.print(commandStateRequest);
+  Serial.print(" returns the relays' most recent commands.\n");
   Serial.print(commandAssistedRelease);
   Serial.print(" initiates an assisted release.\n\n");
   Serial.println("A '..' after feedback indicates that the action will complete promptly.");
   Serial.println("A '...' before feedback indicates that the action follows an automatic action.");
   Serial.println("A '...' after feedback indicates that an automatic action will follow.");
-  Serial.println("A '!!' after feedback indicates that no action was performed due to user error.\n");
+  Serial.println("A '!!' after feedback indicates that no action was performed.\n");
 }
 
 void loop()
@@ -67,8 +69,11 @@ void loop()
   if (fromSerial < 10) runCommand(fromSerial);
   else
   {
-    Serial.println("Beginning timed action...");
+    Serial.print("Beginning timed action...\n...enter time now: ");
+    delay(3000);
     int wait = Serial.parseInt();
+    Serial.print(wait);
+    Serial.print("...\n");
     if (wait == 0) Serial.println("...no wait time entered!!");
     else
     {
@@ -97,10 +102,24 @@ void runCommand(int command)
     absoluteRelay(commandLatch, 0);
     Serial.println("...pushing loading slide...");
     absoluteRelay(commandLoader, 1);
-    while (!digitalRead(backLimitSwitchPin));
+    while (!digitalRead(backLimitSwitchPin))
+    {
+      if (Serial.parseInt() != 0)
+      {
+        Serial.println("...canceled!!");
+        return;
+      }
+    }
     Serial.println("...resetting loading slide...");
     absoluteRelay(commandLoader, 0);
-    while (!digitalRead(frontLimitSwitchPin));
+    while (!digitalRead(frontLimitSwitchPin))
+    {
+      if (Serial.parseInt() != 0)
+      {
+        Serial.println("...canceled!!");
+        return;
+      }
+    }
     Serial.println("...releasing latch...");
     absoluteRelay(commandLatch, 1);
     Serial.println("...waiting for bucket to vacate...");
