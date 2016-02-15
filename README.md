@@ -13,4 +13,4 @@ A '...' after feedback indicates that an automatic action will follow the stated
 A '!!' after feedback indicates that no action was performed due to user error.
 
 ##Troubleshooting
-If the Arduino is not responding to commands, ensure that Newline is enabled.
+If the Arduino is not responding to commands, ensure that Newline is enabled in the serial connection.
