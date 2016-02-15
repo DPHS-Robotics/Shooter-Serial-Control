@@ -1,15 +1,16 @@
+// Pins
 const int loaderPins[2] = { 7, 6 }; // Pins controlling the large cylinder
 const int latchPins[2] = { 5, 4 }; // Pins controlling the latch cylinder
+const int backLimitSwitchPin = 10;
+const int frontLimitSwitchPin = 11;
 
+// Commands
 const int commandLoader = 1;
 const int commandLatch = 2;
 const int commandReset = 3;
 const int commandFireSequence = 5;
 const int commandStateRequest = 7;
 const int commandAssistedRelease = 9;
-
-const int backLimitSwitchPin = 10; // ENTER PIN VALUE
-const int frontLimitSwitchPin = 11; // ENTER PIN VALUE
 
 const int assistedReleaseLoaderTime = 2000; // How long to wait for the loader to move to the back during an assisted release
 const int assistedReleaseVacateTime = 500; // How long to wait for the bucket to vacate the latch during an assisted release
@@ -18,7 +19,7 @@ const int relayHoldTime = 20; // How long to hold the relay on (ms)
 
 const int NUM_POWER_PINS = 2; // How many power pins to include for the limit switches
 const int POWER_PINS[NUM_POWER_PINS] = { 8, 9 }; // Power pins for the limit switches
-const int tab;
+
 int fromSerial;
 int loaderState;
 int latchState;
