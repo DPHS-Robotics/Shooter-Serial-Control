@@ -18,7 +18,7 @@ const int relayHoldTime = 20; // How long to hold the relay on (ms)
 
 const int NUM_POWER_PINS = 2; // How many power pins to include for the limit switches
 const int POWER_PINS[NUM_POWER_PINS] = { 8, 9 }; // Power pins for the limit switches
-
+const int tab;
 int fromSerial;
 int loaderState;
 int latchState;
@@ -111,12 +111,10 @@ void runCommand(int command)
   }
   if (command == commandStateRequest)                      // 7 -> State request
   {
-    Serial.println("State request received...");
-    Serial.print("...loader: ");
-    Serial.print(loaderState == loaderPins[0] ? "Front" : "Loading");
-    Serial.print("...\n...latch: ");
-    Serial.print(latchState == latchPins[0] ? "Up" : "Down");
-    Serial.print("...\n...and that's the state.");
+    Serial.print("Loader: ");
+    Serial.print(loaderState == loaderPins[0] ? "Front\n" : "Loading\n");
+    Serial.print("Latch: ");
+    Serial.print(latchState == latchPins[0] ? "Up\n" : "Down\n");
   }
   if (command == commandAssistedRelease)                   // 9 -> Assisted release
   {
