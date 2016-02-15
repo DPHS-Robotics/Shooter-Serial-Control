@@ -135,9 +135,9 @@ void runCommand(int command)
     Serial.print("Latch: ");
     Serial.print(latchState == latchPins[0] ? "Locked\n" : "Released\n");
     Serial.print("Back switch: ");
-    Serial.print(digitalRead(backLimitSwitchPin) == HIGH ? "Pressed" : "Not pressed");
+    Serial.print(digitalRead(backLimitSwitchPin) == HIGH ? "Pressed\n" : "Not pressed\n");
     Serial.print("Front switch: ");
-    Serial.print(digitalRead(frontLimitSwitchPin) == HIGH ? "Pressed" : "Not pressed");
+    Serial.print(digitalRead(frontLimitSwitchPin) == HIGH ? "Pressed\n" : "Not pressed\n");
   }
   if (command == commandAssistedRelease)                   // 9 -> Assisted release
   {
