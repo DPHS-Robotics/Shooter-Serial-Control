@@ -55,12 +55,10 @@ void setup()
   Serial.print(" initiates a firing sequence.\n");
   Serial.print(commandAssistedRelease);
   Serial.print(" initiates an assisted release.\n\n");
-  Serial.println("A '.' after feedback indicates that the action has been completed.");
   Serial.println("A '..' after feedback indicates that the action will complete promptly.");
   Serial.println("A '...' before feedback indicates that the action follows an automatic action.");
   Serial.println("A '...' after feedback indicates that an automatic action will follow.");
   Serial.println("A '!!' after feedback indicates that no action was performed due to user error.");
-  Serial.println("Be sure that the line ending option below is not 'No line ending'.\n");
 }
 
 void loop()
