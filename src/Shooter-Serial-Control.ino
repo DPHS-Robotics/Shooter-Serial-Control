@@ -1,60 +1,62 @@
 // Pins
-const int loaderPins[2] = { 7, 6 }; // Pins controlling the large cylinder
-const int latchPins[2] = { 5, 4 }; // Pins controlling the latch cylinder
-const int backLimitSwitchPin = 10;
-const int frontLimitSwitchPin = 11;
-const int NUM_POWER_PINS = 2; // How many power pins to include for the limit switches
-const int POWER_PINS[NUM_POWER_PINS] = { 8, 9 }; // Power pins for the limit switches
-const int pressureReaderPowerPin = A2;
-const int pressureReaderDataPin = A1;
-const int pressureReaderGroundPin = A0;
+const int loaderPins[2] = { 7, 6 }; // Loader solenoid (7 retracts, 6 extends)
+const int latchPins[2] = { 5, 4 }; // Latch solenoid (5 extends, 4 retracts)
+const int backLimitSwitchPin = 10; // Data pin for the back limit switch (triggers as cam locks)
+const int frontLimitSwitchPin = 11; // Data pin for the front limit switch (triggers as loader finishes retracting)
+const int limitSwitchPowerPins[2] = { 8, 9 }; // Power pins for the limit switches
+const int pressureReaderPowerPin = A2; // Power pin for the pressure gauge
+const int pressureReaderDataPin = A1; // Data pin for the pressure gauge
+const int pressureReaderGroundPin = A0; // Ground pin for the pressure gauge
 
 // Commands
-const int commandLoader = 1;
-const int commandLatch = 2;
-const int commandReset = 3;
-const int commandFireSequence = 5;
-const int commandStateRequest = 7;
-const int commandAssistedRelease = 9;
+const int commandLoader = 1; // Toggles the loader between extension and retraction
+const int commandLatch = 2; // Toggles the latch between extension and retraction
+const int commandReset = 3; // Resets the loader and latch to their initial states
+const int commandFireSequence = 5; // Prepares and initiates a firing sequence
+const int commandStateRequest = 7; // Reports on the states of certain relays and switches
+const int commandAssistedRelease = 9; // Initiates an assisted release, or unload
 
-const int assistedReleaseLoaderTime = 2000; // How long to wait for the loader to move to the back during an assisted release
-const int assistedReleaseVacateTime = 500; // How long to wait for the bucket to vacate the latch during an assisted release
-const int firingSequenceVacateTime = 200; // How long to wait for the bucket to vacate the latch during a firing sequence
-const int relayHoldTime = 20; // How long to hold the relay on (ms)
+// Wait times
+const int assistedReleaseLoaderTime = 2000; // Time for the loader to reach the bucket during unload
+const int assistedReleaseVacateTime = 500; // Time for the loader and released bucket to vacate the cam during unload
+const int firingSequenceVacateTime = 200; // Time for the sprung bucket to vacate the cam during firing
+const int relayHoldTime = 20; // Time to power solenoids in all cases
 
-const int fireAtPressure = 70;
-const int loadAtPressure = 110;
+// Pressures
+const int fireAtPressure = 70; // Pressure necessary to remove latch from cam
+const int loadAtPressure = 110; // Pressure necessary for loader to load bucket
 
-int fromSerial;
-int loaderState;
-int latchState;
+int fromSerial; // The parsed integer received from the serial connection
+int loaderState; // The most recently powered pin for the loader
+int latchState; // The most recently powered pin for the latch
 
 void setup()
 {
-  // Pin modes
-  for (int i = 0; i < NUM_POWER_PINS; i++)
+  // Pin modes and power/ground pin writes
+  for (int i = 0; i < 2; i++) // Limit switch power/ground pins
   {
-    pinMode(POWER_PINS[i], OUTPUT);
-    digitalWrite(POWER_PINS[i], HIGH);
+    pinMode(limitSwitchPowerPins[i], OUTPUT);
+    digitalWrite(limitSwitchPowerPins[i], HIGH);
   }
-  for (int i = 0; i < 2; i++)
+  for (int i = 0; i < 2; i++) // Relay pins
   {
     pinMode(loaderPins[i], OUTPUT);
     pinMode(latchPins[i], OUTPUT);
   }
-  pinMode(backLimitSwitchPin, INPUT);
-  pinMode(frontLimitSwitchPin, INPUT);
-  pinMode(pressureReaderGroundPin, OUTPUT);
-  pinMode(pressureReaderDataPin, INPUT);
-  pinMode(pressureReaderPowerPin, OUTPUT);
-  digitalWrite(pressureReaderGroundPin, LOW);
-  digitalWrite(pressureReaderPowerPin, HIGH);
+  pinMode(backLimitSwitchPin, INPUT); // Back limit switch data
+  pinMode(frontLimitSwitchPin, INPUT); // Front limit switch data
+  pinMode(pressureReaderGroundPin, OUTPUT); // Pressure gauge ground pin
+  pinMode(pressureReaderDataPin, INPUT); // Pressure gauge data pin
+  pinMode(pressureReaderPowerPin, OUTPUT); // Pressure gauge power pin
+  digitalWrite(pressureReaderGroundPin, LOW); // Pressure gauge ground pin write
+  digitalWrite(pressureReaderPowerPin, HIGH); // Pressure gauge power pin write
 
   // Resetting the system
-  loaderState = loaderPins[0];
-  latchState = latchPins[0];
-  updateRelay(0); // Updates both relays
+  loaderState = loaderPins[0]; // Initial loader state defaults to index 0 of its two relays
+  latchState = latchPins[0]; // Initial latch state defaults to index 0 of its two relays
+  updateRelay(0); // Powers both relays with the new states
 
+  // User instructions
   Serial.begin(9600);
   Serial.print(commandLoader);
   Serial.print(" toggles the state of the loader.\n");
@@ -76,25 +78,8 @@ void setup()
 
 void loop()
 {
-  fromSerial = Serial.parseInt();
-  if (fromSerial < 10) runCommand(fromSerial);
-  else
-  {
-    Serial.print("Beginning timed action...\n...enter time now: ");
-    delay(3000);
-    int wait = Serial.parseInt();
-    Serial.print(wait);
-    Serial.print("...\n");
-    if (wait == 0) Serial.println("...no wait time entered!!");
-    else
-    {
-      Serial.print("...waiting ");
-      Serial.print(wait);
-      Serial.print(" ms...\n");
-      delay(wait);
-      runCommand(fromSerial % 10);
-    }
-  }
+  fromSerial = Serial.parseInt(); // Parses an integer from the serial connection
+  runCommand(fromSerial); // Checks against the index of commands and runs the correct one
 }
 
 void runCommand(int command)
@@ -109,42 +94,43 @@ void runCommand(int command)
   if (command == commandFireSequence)                      // 5 -> Firing sequence
   {
     Serial.println("Beginning firing sequence...");
-    Serial.println("...locking latch...");
+    Serial.println("...locking latch..."); // Latch must be locked in order to load the bucket
     absoluteRelay(commandLatch, 0);
-    Serial.println("...waiting for pressure...");
+    Serial.println("...waiting for pressure..."); // We must have loadAtPressure PSI in order to successfully load
     holdForPressure(loadAtPressure);
-    Serial.println("...pushing loading slide...");
+    Serial.println("...pushing loading slide..."); // Once we are at pressure, we can load
     absoluteRelay(commandLoader, 1);
-    while (!digitalRead(backLimitSwitchPin))
+    while (!digitalRead(backLimitSwitchPin)) // Wait while the loader has not finished loading the bucket
     {
-      if (Serial.parseInt() != 0)
+      if (Serial.parseInt() != 0) // Allow cancelation of the firing sequence
       {
         Serial.println("...canceled!!");
         return;
       }
     }
-    Serial.println("...resetting loading slide...");
+    Serial.println("...resetting loading slide..."); // The bucket has been loaded and the loader can retract
     absoluteRelay(commandLoader, 0);
-    while (!digitalRead(frontLimitSwitchPin))
+    while (!digitalRead(frontLimitSwitchPin)) // Wait while the loader has not finished retracting
     {
-      if (Serial.parseInt() != 0)
+      if (Serial.parseInt() != 0) // Allow cancelation of the firing sequence
       {
         Serial.println("...canceled!!");
         return;
       }
     }
-    Serial.println("...waiting for pressure...");
+    Serial.println("...waiting for pressure..."); // We must have fireAtPressure PSI in order to successfully release the latch
     holdForPressure(fireAtPressure);
-    Serial.println("...releasing latch...");
+    Serial.println("...releasing latch..."); // We can now pull the latch from the cam
     absoluteRelay(commandLatch, 1);
-    Serial.println("...waiting for bucket to vacate...");
+    Serial.println("...waiting for bucket to vacate..."); // Give the bucket time to get out of the cam before relocking
     delay(firingSequenceVacateTime);
-    Serial.println("...locking latch...");
+    Serial.println("...locking latch..."); // Relock the latch for the next firing sequence
     absoluteRelay(commandLatch, 0);
     Serial.println("...firing sequence complete.");
   }
   if (command == commandStateRequest)                      // 7 -> State request
   {
+    // This command makes heavy use of the ternary operator (http://bit.ly/ternary-op)
     Serial.print("Loader: ");
     Serial.print(loaderState == loaderPins[0] ? "Reset\n" : "Loading\n");
     Serial.print("Latch: ");
@@ -157,26 +143,26 @@ void runCommand(int command)
   if (command == commandAssistedRelease)                   // 9 -> Assisted release
   {
     Serial.println("Beginning assisted release...");
-    absoluteRelay(commandLoader, 1);
-    Serial.println("...waiting for pressure...");
+    Serial.println("...waiting for pressure..."); // We need loadAtPressure PSI to ensure loader strength
     holdForPressure(loadAtPressure);
-    Serial.println("...pushing loading slide and waiting...");
-    delay(assistedReleaseLoaderTime);
-    Serial.println("...waiting for pressure...");
+    Serial.println("...pushing loading slide and waiting..."); // Move the loader to hold the bucket
+    absoluteRelay(commandLoader, 1);
+    delay(assistedReleaseLoaderTime); // The loader needs time to get to the bucket
+    Serial.println("...waiting for pressure..."); // We need fireAtPressure PSI to ensure latch release
     holdForPressure(fireAtPressure);
-    Serial.println("...releasing latch...");
+    Serial.println("...releasing latch..."); // Release the latch
     absoluteRelay(commandLatch, 1);
-    Serial.println("...releasing loader...");
+    Serial.println("...releasing loader..."); // Let the loader carry the bucket back to the front
     absoluteRelay(commandLoader, 0);
-    Serial.println("...waiting for loader to vacate...");
+    Serial.println("...waiting for loader to vacate..."); // Give the bucket time to vacate the cam
     delay(assistedReleaseVacateTime);
-    Serial.println("...locking latch...");
+    Serial.println("...locking latch..."); // Relock the latch for the next fire or unload
     absoluteRelay(commandLatch, 0);
     Serial.println("...assisted release complete.");
   }
 }
 
-void allRelaysLow()
+void allRelaysLow() // Bring down all relays (usually used after holding a relay up for relayHoldTime)
 {
   for (int i = 0; i < 2; i++)
   {
@@ -185,7 +171,7 @@ void allRelaysLow()
   }
 }
 
-void toggle(int cylinder)
+void toggle(int cylinder) // Switch the state of a certain solenoid and report
 {
   if (cylinder == commandLoader)
   {
@@ -207,18 +193,18 @@ void toggle(int cylinder)
     );
   }
 
-  updateRelay(cylinder);
+  updateRelay(cylinder); // Update the relay pair (the state of which we have just modified)
 }
 
-void updateRelay(int cylinder)
+void updateRelay(int cylinder) // Update a relay pair to match its recorded state
 {
   if (cylinder == 0 || cylinder == commandLoader) digitalWrite(loaderState, HIGH);
   if (cylinder == 0 || cylinder == commandLatch) digitalWrite(latchState, HIGH);
-  delay(relayHoldTime);
-  allRelaysLow();
+  delay(relayHoldTime); // Give the solenoid time to register the power
+  allRelaysLow(); // Finish by bringing all relays back down
 }
 
-void absoluteRelay(int cylinder, int state)
+void absoluteRelay(int cylinder, int state) // Fire a change to a solenoid, regardless of what its current state is
 {
   if (cylinder == commandLoader)
   {
@@ -233,13 +219,13 @@ void absoluteRelay(int cylinder, int state)
   }
 }
 
-void reset()
+void reset() // Bring both cylinders back to their default states
 {
   absoluteRelay(commandLoader, 0);
   absoluteRelay(commandLatch, 0);
 }
 
-void holdForPressure(int PSIG)
+void holdForPressure(int PSIG) // Run a loop to wait until a given pressure is read
 {
-  while(0.255 * (analogRead(pressureReaderDataPin)) - 25.427 < PSIG);
+  while(0.255 * (analogRead(pressureReaderDataPin)) - 25.427 < PSIG); // Experimental equation
 }
